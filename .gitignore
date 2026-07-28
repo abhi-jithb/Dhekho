@@ -1,0 +1,10 @@
+out
+dist
+node_modules
+.vscode-test/
+*.vsix
+.vscode
+.npmrc
+.vscode-test.mjs
+.vscodeignore
+pnpm-lock.yaml
