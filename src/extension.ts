@@ -1,6 +1,5 @@
-import { timeStamp } from 'console';
 import * as vscode from 'vscode';
-import {Activity} from "./models/Activity"
+import { createActivity } from './services/ActivityService';
 
 export function activate(context : vscode.ExtensionContext){
     console.log('First line of hard code in building VS Code Extension');
@@ -10,12 +9,11 @@ export function activate(context : vscode.ExtensionContext){
             console.log("Active editor changed!");
 
             if(edi){
-                const activity : Activity = {
-                    type: "Active File Changed!",
-                    file: edi.document.fileName,
-                    timeStamp: new Data()
-                }
-                console.log(activity);
+                const activity = createActivity(
+                    "Active File Changed!",
+                    edi.document.fileName
+                );
+                console.log(JSON.stringify(activity, null, 2));
             } else{
                 console.log("no active editor!");
             }
