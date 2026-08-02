@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { createActivity } from './services/ActivityService';
+import { publish } from './services/ActivityPublisher';
 
 export function activate(context : vscode.ExtensionContext){
     console.log('First line of hard code in building VS Code Extension');
@@ -13,7 +14,7 @@ export function activate(context : vscode.ExtensionContext){
                     "Active File Changed!",
                     edi.document.fileName
                 );
-                console.log(JSON.stringify(activity, null, 2));
+                publish(activity)
             } else{
                 console.log("no active editor!");
             }
