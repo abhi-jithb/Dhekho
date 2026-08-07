@@ -1,0 +1,23 @@
+{
+  "name": "dhekho-server",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/abhi-jithb/Dhekho#readme",
+  "bugs": {
+    "url": "https://github.com/abhi-jithb/Dhekho/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/abhi-jithb/Dhekho.git"
+  },
+  "license": "ISC",
+  "author": "Abhijith B",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
