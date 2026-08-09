@@ -4,7 +4,8 @@ import { getDeveloper } from "./DeveloperService";
 export function createActivity(
     type: string,
     fileName: string,
-    workspaceId: string
+    workspaceId: string,
+    gitBranch?: string
 ): Activity {
 
     const developer = getDeveloper();
@@ -15,6 +16,7 @@ export function createActivity(
         workspaceId,
         timeStamp: new Date(),
         developerId: developer.developerId,
-        developerName: developer.developerName
+        developerName: developer.developerName,
+        gitBranch
     };
 }
