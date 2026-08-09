@@ -14,10 +14,25 @@
   "contributes": {
     "commands": [
       {
-        "command": "dhekho.helloWorld",
-        "title": "Hello World"
+        "command": "dhekho.showTeamActivity",
+        "title": "Dhekho: Show Team Activity"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Dhekho Team Awareness",
+      "properties": {
+        "dhekho.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "URL of the Dhekho server instance."
+        },
+        "dhekho.enableFolderDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show aggregated teammate activity badges on Explorer folders."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run package",
