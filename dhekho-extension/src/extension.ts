@@ -9,6 +9,8 @@ import { DhekhoFileDecorationProvider } from './providers/DhekhoFileDecorationPr
 import { DhekhoStatusBarItem } from './components/StatusBarItem';
 import { registerTeamActivityCommands } from './commands/TeamActivityCommand';
 
+import { getCurrentGitBranch } from './services/GitService';
+
 export function activate(context: vscode.ExtensionContext) {
     console.log('Activating Dhekho team awareness platform extension...');
 
@@ -57,10 +59,13 @@ export function activate(context: vscode.ExtensionContext) {
                 ? path.relative(workspaceFolder.uri.fsPath, edi.document.uri.fsPath)
                 : edi.document.fileName;
 
+            const gitBranch = await getCurrentGitBranch(workspaceFolder);
+
             const activity = createActivity(
                 "active-file-changed",
                 fileName,
-                workspaceId
+                workspaceId,
+                gitBranch
             );
 
             console.log("ABOUT TO PUBLISH ACTIVITY:", activity);
