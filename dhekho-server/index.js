@@ -123,6 +123,8 @@ app.post("/activity", (req, res) => {
         activeFile: activity.file,
         gitBranch: activity.gitBranch || existing?.gitBranch,
         startTime,
+        isEditing: typeof activity.isEditing === "boolean" ? activity.isEditing : existing?.isEditing || false,
+        lastSaved: activity.lastSaved || existing?.lastSaved,
         lastSeen: activity.timeStamp || new Date().toISOString()
     };
 
