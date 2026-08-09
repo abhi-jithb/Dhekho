@@ -3,167 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Dhekho Activity</title>
-
+    <title>Dhekho - Team Presence & Activity</title>
     <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border-color: #334155;
+            --accent-green: #22c55e;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 40px auto;
-            padding: 0 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
         }
 
         h1 {
-            margin-bottom: 5px;
+            margin: 0;
+            font-size: 26px;
+            letter-spacing: -0.5px;
         }
 
-        #status {
-            margin-bottom: 25px;
-            color: #666;
-        }
-
-
-
-        .developer {
-            font-weight: bold;
-            margin-bottom: 6px;
-        }
-
-        .activity {
-            border-left: 5px solid;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 10px;
-        }
-
-        .file {
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        .type {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .time {
-            color: #999;
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             font-size: 13px;
-            margin-top: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background-color: #064e3b;
+            color: #34d399;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #34d399;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 25px 0 15px 0;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .presence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .presence-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-left: 6px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            transition: transform 0.15s ease;
+        }
+
+        .presence-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .dev-name {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .workspace-tag {
+            font-size: 11px;
+            background: #334155;
+            color: #cbd5e1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+
+        .active-file {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            color: #38bdf8;
+            word-break: break-all;
+            margin: 8px 0;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .active-now {
+            color: #4ade80;
+            font-weight: 600;
+        }
+
+        .activity-feed {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .activity-item {
+            background-color: var(--card-bg);
+            border-left: 4px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .activity-main {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .empty-state {
+            color: var(--text-sub);
+            font-style: italic;
+            padding: 15px;
+            text-align: center;
+            background: var(--card-bg);
+            border-radius: 8px;
         }
     </style>
 </head>
-
 <body>
 
-    <h1>Dhekho</h1>
-    <div id="status">Connecting...</div>
+    <div class="header">
+        <div>
+            <h1>Dhekho Team Awareness</h1>
+            <div style="font-size: 13px; color: var(--text-sub); margin-top: 4px;">Live Teammate Presence Dashboard</div>
+        </div>
+        <div id="status" class="status-badge">
+            <span class="status-dot"></span> Connected
+        </div>
+    </div>
 
-    <div id="activities"></div>
+    <div class="section-title">Active Teammates</div>
+    <div id="presenceGrid" class="presence-grid">
+        <div class="empty-state">No active teammates currently online in this workspace.</div>
+    </div>
+
+    <div class="section-title">Recent Activity Log</div>
+    <div id="activityFeed" class="activity-feed"></div>
 
     <script>
-
+        const presenceMap = new Map();
         const developerColors = new Map();
-
-        const colors = [
-            "#22c55e",
-            "#8b5cf6",
-            "#3b82f6",
-            "#f59e0b",
-            "#ef4444",
-            "#06b6d4"
-        ];
-
-        let nextColor = 0;
+        const colors = ["#22c55e", "#8b5cf6", "#3b82f6", "#f59e0b", "#ef4444", "#06b6d4"];
+        let nextColorIdx = 0;
 
         function getDeveloperColor(developerId) {
             if (!developerColors.has(developerId)) {
-                developerColors.set(
-                    developerId,
-                    colors[nextColor % colors.length]
-                );
-            
-                nextColor++;
+                developerColors.set(developerId, colors[nextColorIdx % colors.length]);
+                nextColorIdx++;
             }
-        
             return developerColors.get(developerId);
         }
 
-        const activitiesContainer =
-            document.getElementById("activities");
+        const presenceGrid = document.getElementById("presenceGrid");
+        const activityFeed = document.getElementById("activityFeed");
+        const statusEl = document.getElementById("status");
 
-        const status =
-            document.getElementById("status");
+        function renderPresence() {
+            if (presenceMap.size === 0) {
+                presenceGrid.innerHTML = `<div class="empty-state">No active teammates currently online in this workspace.</div>`;
+                return;
+            }
 
+            presenceGrid.innerHTML = "";
+            presenceMap.forEach((state) => {
+                const color = getDeveloperColor(state.developerId);
+                const card = document.createElement("div");
+                card.className = "presence-card";
+                card.style.borderLeftColor = color;
 
-        function showActivity(activity) {
+                const branchTag = state.gitBranch ? `<span class="workspace-tag">🌿 ${state.gitBranch}</span>` : "";
+                const isEditingText = state.isEditing ? " <span style='color:#f59e0b;'>(editing)</span>" : "";
 
-    const element = document.createElement("div");
+                card.innerHTML = `
+                    <div class="dev-name" style="color: ${color}">
+                        ${state.developerName || state.developerId}
+                        <span class="workspace-tag">${state.workspaceId || "default"}</span>
+                    </div>
+                    <div class="active-file">
+                        📄 ${state.activeFile}${isEditingText}
+                    </div>
+                    <div class="card-meta">
+                        <span>${branchTag}</span>
+                        <span class="active-now">● Active now</span>
+                    </div>
+                `;
+                presenceGrid.appendChild(card);
+            });
+        }
 
-    element.className = "activity";
+        function addActivityLog(activity) {
+            if (!activity.file) return;
+            const color = getDeveloperColor(activity.developerId || "unknown");
+            const item = document.createElement("div");
+            item.className = "activity-item";
+            item.style.borderLeftColor = color;
 
-    const color = getDeveloperColor(activity.developerId);
+            const timeStr = activity.timeStamp ? new Date(activity.timeStamp).toLocaleTimeString() : new Date().toLocaleTimeString();
 
-    element.style.borderLeftColor = color;
+            item.innerHTML = `
+                <div class="activity-main">
+                    <span style="font-weight:600; color:${color}">${activity.developerName || activity.developerId}</span>
+                    <span style="font-family:monospace; font-size:13px; color:#38bdf8;">${activity.file}</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-sub); text-align:right;">
+                    <div>${activity.type || 'active-file-changed'}</div>
+                    <div>${timeStr}</div>
+                </div>
+            `;
 
-    element.innerHTML = `
-        <div class="developer" style="color: ${color}">
-            ${activity.developerName}
-        </div>
+            activityFeed.prepend(item);
+            if (activityFeed.children.length > 20) {
+                activityFeed.removeChild(activityFeed.lastChild);
+            }
+        }
 
-        <div class="file">
-            ${activity.file}
-        </div>
-
-        <div class="type">
-            ${activity.type}
-        </div>
-
-        <div class="time">
-            ${new Date(activity.timeStamp).toLocaleString()}
-        </div>
-    `;
-
-    activitiesContainer.prepend(element);
-}
-
-
-        // Load previous activities
-
-        fetch("/activities")
-            .then(response => response.json())
-            .then(activities => {
-
-                activities.forEach(activity => {
-                    showActivity(activity);
-                });
-
+        // Fetch initial presence
+        fetch("/presence")
+            .then(res => res.json())
+            .then(list => {
+                list.forEach(item => presenceMap.set(item.developerId, item));
+                renderPresence();
             });
 
+        // Fetch initial activities
+        fetch("/activities")
+            .then(res => res.json())
+            .then(list => {
+                list.slice(-10).forEach(act => addActivityLog(act));
+            });
 
-        // Connect to WebSocket
-
-        const socket = new WebSocket("ws://localhost:3000");
-
+        // WebSocket sync
+        const socket = new WebSocket("ws://" + location.host);
 
         socket.addEventListener("open", () => {
-
-            status.textContent = "Connected";
-
+            statusEl.innerHTML = `<span class="status-dot"></span> Connected`;
         });
-
 
         socket.addEventListener("message", (event) => {
             try {
                 const data = JSON.parse(event.data);
 
-                if (data.type === "connected" || data.type === "presence_snapshot" || data.type === "developer_offline") {
+                if (data.type === "presence_snapshot" && Array.isArray(data.payload)) {
+                    presenceMap.clear();
+                    data.payload.forEach(item => presenceMap.set(item.developerId, item));
+                    renderPresence();
                     return;
                 }
 
                 if (data.type === "presence_update" && data.payload) {
-                    showActivity({
+                    presenceMap.set(data.payload.developerId, data.payload);
+                    renderPresence();
+                    addActivityLog({
                         developerId: data.payload.developerId,
                         developerName: data.payload.developerName,
                         file: data.payload.activeFile,
@@ -173,16 +301,24 @@
                     return;
                 }
 
+                if (data.type === "developer_offline" && data.payload) {
+                    presenceMap.delete(data.payload.developerId);
+                    renderPresence();
+                    return;
+                }
+
                 if (data.file && data.developerId) {
-                    showActivity(data);
+                    addActivityLog(data);
                 }
             } catch (err) {
-                console.error("Error processing dashboard socket message:", err);
+                console.error("Error processing message:", err);
             }
         });
 
         socket.addEventListener("close", () => {
-            status.textContent = "Disconnected";
+            statusEl.innerHTML = `<span class="status-dot" style="background:#ef4444"></span> Disconnected`;
+            statusEl.style.backgroundColor = "#7f1d1d";
+            statusEl.style.color = "#fca5a5";
         });
     </script>
 </body>

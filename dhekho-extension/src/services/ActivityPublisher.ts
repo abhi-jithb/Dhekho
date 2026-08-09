@@ -1,7 +1,10 @@
 import { Activity } from "../models/Activity";
 
-export async function publish(activity: Activity) {
-    const response = await fetch("http://localhost:3000/activity", {
+export async function publish(activity: Activity, serverUrl: string = "http://localhost:3000") {
+    const baseUrl = serverUrl.replace(/\/+$/, "");
+    const endpoint = `${baseUrl}/activity`;
+
+    const response = await fetch(endpoint, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -9,5 +12,9 @@ export async function publish(activity: Activity) {
         body: JSON.stringify(activity)
     });
 
-    console.log("Server response:", await response.json());
+    if (!response.ok) {
+        throw new Error(`Failed to publish activity. Server responded with status ${response.status}`);
+    }
+
+    return await response.json();
 }

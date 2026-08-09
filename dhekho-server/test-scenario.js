@@ -37,82 +37,108 @@ function delay(ms) {
 }
 
 async function runTest() {
-    console.log("=== Starting Dhekho E2E Test Scenario ===");
+    console.log("=== Starting Comprehensive Dhekho E2E Test Suite ===");
 
-    const aliceEvents = [];
-    const bobEvents = [];
+    const dev1Events = [];
+    const dev2Events = [];
+    const projBEvents = [];
 
-    // 1. Connect Client A (Alice) and Client B (Bob)
-    console.log("1. Connecting Alice and Bob WS clients...");
-    const clientAlice = await createClient("alice", "Alice", "Dhekho", (msg) => {
-        console.log("[ALICE RECEIVED]:", msg.type, JSON.stringify(msg.payload || {}));
-        aliceEvents.push(msg);
+    // Step 1: Connect Developer 1 (Abhijith) and Developer 2 (Rahul) to Workspace "ProjectA"
+    console.log("\n[Test 1 & 2] Connecting Developer 1 (Abhijith) and Developer 2 (Rahul)...");
+    const clientDev1 = await createClient("abhijith", "Abhijith B", "ProjectA", (msg) => {
+        console.log("  [Abhijith WS Received]:", msg.type, msg.payload?.developerId || "");
+        dev1Events.push(msg);
     });
 
-    const clientBob = await createClient("bob", "Bob", "Dhekho", (msg) => {
-        console.log("[BOB RECEIVED]:", msg.type, JSON.stringify(msg.payload || {}));
-        bobEvents.push(msg);
+    const clientDev2 = await createClient("rahul", "Rahul S", "ProjectA", (msg) => {
+        console.log("  [Rahul WS Received]:", msg.type, msg.payload?.developerId || "");
+        dev2Events.push(msg);
     });
 
-    await delay(500);
+    // Step 2: Connect Isolated Client to Workspace "ProjectB"
+    console.log("\n[Test 5] Connecting Client to Workspace 'ProjectB' for isolation testing...");
+    const clientProjB = await createClient("dev3", "Dev 3", "ProjectB", (msg) => {
+        projBEvents.push(msg);
+    });
 
-    // 2. Alice switches to src/auth/login.ts
-    console.log("\n2. Alice switches active file to 'src/auth/login.ts'");
+    await delay(300);
+
+    // Step 3: Abhijith switches active file to src/auth/login.ts
+    console.log("\n[Test 3] Abhijith switches file to 'src/auth/login.ts'");
     await sendActivity({
         type: "active-file-changed",
         file: "src/auth/login.ts",
-        workspaceId: "Dhekho",
+        workspaceId: "ProjectA",
         timeStamp: new Date().toISOString(),
-        developerId: "alice",
-        developerName: "Alice"
+        developerId: "abhijith",
+        developerName: "Abhijith B",
+        gitBranch: "main"
     });
 
-    await delay(500);
+    await delay(300);
 
-    // 3. Bob switches to src/components/Navbar.tsx
-    console.log("\n3. Bob switches active file to 'src/components/Navbar.tsx'");
+    // Step 4: Rahul switches active file to src/components/Navbar.tsx
+    console.log("\n[Test 4] Rahul switches file to 'src/components/Navbar.tsx'");
     await sendActivity({
         type: "active-file-changed",
         file: "src/components/Navbar.tsx",
-        workspaceId: "Dhekho",
+        workspaceId: "ProjectA",
         timeStamp: new Date().toISOString(),
-        developerId: "bob",
-        developerName: "Bob"
+        developerId: "rahul",
+        developerName: "Rahul S",
+        gitBranch: "feature/nav"
     });
 
-    await delay(500);
+    await delay(300);
 
-    // 4. Alice moves from login.ts to register.ts
-    console.log("\n4. Alice switches active file to 'src/auth/register.ts'");
+    // Step 5: Abhijith moves from login.ts to register.ts
+    console.log("\n[Test 3 Move] Abhijith moves file from 'src/auth/login.ts' to 'src/auth/register.ts'");
     await sendActivity({
         type: "active-file-changed",
         file: "src/auth/register.ts",
-        workspaceId: "Dhekho",
+        workspaceId: "ProjectA",
         timeStamp: new Date().toISOString(),
-        developerId: "alice",
-        developerName: "Alice"
+        developerId: "abhijith",
+        developerName: "Abhijith B",
+        gitBranch: "main"
     });
 
-    await delay(500);
+    await delay(300);
 
-    // 5. Bob disconnects
-    console.log("\n5. Bob disconnects WebSocket...");
-    clientBob.close();
+    // Step 6: Disconnect Rahul
+    console.log("\n[Test 6] Disconnecting Rahul WS client...");
+    clientDev2.close();
 
-    await delay(500);
+    await delay(300);
 
-    // Check presence API
-    console.log("\n6. Checking /presence endpoint for workspace Dhekho...");
-    const presenceRes = await fetch("http://localhost:3000/presence?workspaceId=Dhekho");
-    const activePresence = await presenceRes.json();
-    console.log("Current Active Presence on Server:", activePresence);
+    // Step 7: Verify Presence API & Workspace Isolation
+    console.log("\n[Test 7] Verifying Server /presence for Workspace 'ProjectA'...");
+    const presResA = await fetch("http://localhost:3000/presence?workspaceId=ProjectA");
+    const activeA = await presResA.json();
+    console.log("  Active Presence in ProjectA:", activeA);
 
-    clientAlice.close();
-    console.log("\n=== Test Scenario Completed Successfully ===");
+    if (activeA.length === 1 && activeA[0].developerId === "abhijith" && activeA[0].activeFile === "src/auth/register.ts") {
+        console.log("  ✔ SUCCESS: ProjectA presence accurately shows only Abhijith on register.ts!");
+    } else {
+        throw new Error("FAILED: ProjectA presence verification failed.");
+    }
+
+    // Verify ProjectB isolation (ProjectB should have zero events from ProjectA)
+    const projectAEventsOnB = projBEvents.filter(e => e.type === "presence_update" && e.payload?.workspaceId === "ProjectA");
+    if (projectAEventsOnB.length === 0) {
+        console.log("  ✔ SUCCESS: Workspace isolation verified! ProjectB received 0 events from ProjectA.");
+    } else {
+        throw new Error("FAILED: Workspace isolation leaked events to ProjectB.");
+    }
+
+    clientDev1.close();
+    clientProjB.close();
+
+    console.log("\n=== ALL 7 E2E TESTS PASSED SUCCESSFULLY ===");
     process.exit(0);
 }
 
 runTest().catch((err) => {
-    console.error("Test Scenario Failed:", err);
+    console.error("E2E Test Suite Failed:", err);
     process.exit(1);
 });
