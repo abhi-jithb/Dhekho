@@ -1,0 +1,151 @@
+const express = require("express");
+const { WebSocketServer, WebSocket } = require("ws");
+
+const app = express();
+app.use(express.json());
+
+app.get("/", (req, res) => {
+    res.sendFile(__dirname + "/dashboard.html");
+});
+
+const activities = [];
+
+// workspaceId -> Map<developerId, TeammateState>
+const workspacePresenceMap = new Map();
+
+function getWorkspaceMap(workspaceId) {
+    const wId = workspaceId || "default";
+    if (!workspacePresenceMap.has(wId)) {
+        workspacePresenceMap.set(wId, new Map());
+    }
+    return workspacePresenceMap.get(wId);
+}
+
+function broadcastToWorkspace(workspaceId, messageObj) {
+    const jsonStr = JSON.stringify(messageObj);
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN && client.workspaceId === workspaceId) {
+            client.send(jsonStr);
+        }
+    });
+}
+
+// HTTP server
+const server = app.listen(3000, () => {
+    console.log("Dhekho server running on port 3000");
+});
+
+// WebSocket server
+const wss = new WebSocketServer({ server });
+
+wss.on("connection", (ws) => {
+    console.log("Client connected");
+
+    ws.send(JSON.stringify({
+        type: "connected",
+        message: "Connected to Dhekho server"
+    }));
+
+    ws.on("message", (rawMessage) => {
+        try {
+            const data = JSON.parse(rawMessage.toString());
+            if (data.type === "register") {
+                const { developerId, developerName, workspaceId } = data;
+                ws.developerId = developerId;
+                ws.developerName = developerName || developerId;
+                ws.workspaceId = workspaceId || "default";
+
+                console.log(`Registered WS client: ${developerId} in workspace: ${ws.workspaceId}`);
+
+                // Send snapshot of current active presence for this workspace
+                const wMap = getWorkspaceMap(ws.workspaceId);
+                const snapshot = Array.from(wMap.values());
+
+                ws.send(JSON.stringify({
+                    type: "presence_snapshot",
+                    payload: snapshot
+                }));
+            }
+        } catch (err) {
+            console.error("Error parsing WS message:", err);
+        }
+    });
+
+    ws.on("close", () => {
+        const { developerId, workspaceId } = ws;
+        console.log(`Client disconnected: ${developerId || 'unknown'}`);
+
+        if (developerId && workspaceId) {
+            // Check if developer has other active socket connections
+            let hasOtherSocket = false;
+            wss.clients.forEach((client) => {
+                if (client !== ws && client.readyState === WebSocket.OPEN && client.developerId === developerId && client.workspaceId === workspaceId) {
+                    hasOtherSocket = true;
+                }
+            });
+
+            if (!hasOtherSocket) {
+                const wMap = getWorkspaceMap(workspaceId);
+                wMap.delete(developerId);
+
+                broadcastToWorkspace(workspaceId, {
+                    type: "developer_offline",
+                    payload: {
+                        developerId,
+                        workspaceId
+                    }
+                });
+                console.log(`Developer ${developerId} marked offline in workspace ${workspaceId}`);
+            }
+        }
+    });
+});
+
+// Receive activity
+app.post("/activity", (req, res) => {
+    const activity = req.body;
+    const workspaceId = activity.workspaceId || "default";
+
+    console.log("Activity received:", activity);
+    activities.push(activity);
+
+    const teammateState = {
+        developerId: activity.developerId,
+        developerName: activity.developerName || activity.developerId,
+        workspaceId,
+        activeFile: activity.file,
+        lastSeen: activity.timeStamp || new Date().toISOString()
+    };
+
+    const wMap = getWorkspaceMap(workspaceId);
+    wMap.set(activity.developerId, teammateState);
+
+    // Broadcast presence update to workspace clients
+    broadcastToWorkspace(workspaceId, {
+        type: "presence_update",
+        payload: teammateState
+    });
+
+    // Also broadcast raw activity for legacy/dashboard support
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(activity));
+        }
+    });
+
+    res.json({
+        success: true
+    });
+});
+
+// Get previous activities
+app.get("/activities", (req, res) => {
+    res.json(activities);
+});
+
+// Get active teammate presence per workspace
+app.get("/presence", (req, res) => {
+    const workspaceId = req.query.workspaceId || "default";
+    const wMap = getWorkspaceMap(workspaceId);
+    res.json(Array.from(wMap.values()));
+});
