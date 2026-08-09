@@ -58,18 +58,20 @@ export class DhekhoFileDecorationProvider implements vscode.FileDecorationProvid
         const fileTeammates = this.presenceManager.getFilePresence(relativePath);
         if (fileTeammates.length > 0) {
             const primary = fileTeammates[0];
-            const badge = getDeveloperBadge(primary.developerName);
+            const badge = primary.isEditing ? "✏" : getDeveloperBadge(primary.developerName);
             const color = getDeveloperColor(primary.developerId);
 
             let tooltip: string;
             if (fileTeammates.length === 1) {
                 const branchInfo = primary.gitBranch ? ` [${primary.gitBranch}]` : "";
                 const durInfo = formatDuration(primary.startTime || primary.lastSeen);
-                tooltip = `${primary.developerName || primary.developerId}${branchInfo} is working here${durInfo}`;
+                const statusVerb = primary.isEditing ? "is currently editing" : "is working here";
+                tooltip = `${primary.developerName || primary.developerId}${branchInfo} ${statusVerb}${durInfo}`;
             } else {
                 const names = fileTeammates.map(t => {
                     const b = t.gitBranch ? ` [${t.gitBranch}]` : "";
-                    return `${t.developerName || t.developerId}${b}`;
+                    const ed = t.isEditing ? " (editing)" : "";
+                    return `${t.developerName || t.developerId}${b}${ed}`;
                 }).join(", ");
                 tooltip = `${names} are working here`;
             }
