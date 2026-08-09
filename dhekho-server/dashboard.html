@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dhekho Activity</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 5px;
+        }
+
+        #status {
+            margin-bottom: 25px;
+            color: #666;
+        }
+
+
+
+        .developer {
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .activity {
+            border-left: 5px solid;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .file {
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        .type {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .time {
+            color: #999;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Dhekho</h1>
+    <div id="status">Connecting...</div>
+
+    <div id="activities"></div>
+
+    <script>
+
+        const developerColors = new Map();
+
+        const colors = [
+            "#22c55e",
+            "#8b5cf6",
+            "#3b82f6",
+            "#f59e0b",
+            "#ef4444",
+            "#06b6d4"
+        ];
+
+        let nextColor = 0;
+
+        function getDeveloperColor(developerId) {
+            if (!developerColors.has(developerId)) {
+                developerColors.set(
+                    developerId,
+                    colors[nextColor % colors.length]
+                );
+            
+                nextColor++;
+            }
+        
+            return developerColors.get(developerId);
+        }
+
+        const activitiesContainer =
+            document.getElementById("activities");
+
+        const status =
+            document.getElementById("status");
+
+
+        function showActivity(activity) {
+
+    const element = document.createElement("div");
+
+    element.className = "activity";
+
+    const color = getDeveloperColor(activity.developerId);
+
+    element.style.borderLeftColor = color;
+
+    element.innerHTML = `
+        <div class="developer" style="color: ${color}">
+            ${activity.developerName}
+        </div>
+
+        <div class="file">
+            ${activity.file}
+        </div>
+
+        <div class="type">
+            ${activity.type}
+        </div>
+
+        <div class="time">
+            ${new Date(activity.timeStamp).toLocaleString()}
+        </div>
+    `;
+
+    activitiesContainer.prepend(element);
+}
+
+
+        // Load previous activities
+
+        fetch("/activities")
+            .then(response => response.json())
+            .then(activities => {
+
+                activities.forEach(activity => {
+                    showActivity(activity);
+                });
+
+            });
+
+
+        // Connect to WebSocket
+
+        const socket = new WebSocket("ws://localhost:3000");
+
+
+        socket.addEventListener("open", () => {
+
+            status.textContent = "Connected";
+
+        });
+
+
+        socket.addEventListener("message", (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === "connected" || data.type === "presence_snapshot" || data.type === "developer_offline") {
+                    return;
+                }
+
+                if (data.type === "presence_update" && data.payload) {
+                    showActivity({
+                        developerId: data.payload.developerId,
+                        developerName: data.payload.developerName,
+                        file: data.payload.activeFile,
+                        type: "active-file-changed",
+                        timeStamp: data.payload.lastSeen
+                    });
+                    return;
+                }
+
+                if (data.file && data.developerId) {
+                    showActivity(data);
+                }
+            } catch (err) {
+                console.error("Error processing dashboard socket message:", err);
+            }
+        });
+
+        socket.addEventListener("close", () => {
+            status.textContent = "Disconnected";
+        });
+    </script>
+</body>
+</html>
