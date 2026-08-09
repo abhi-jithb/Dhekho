@@ -159,3 +159,57 @@ app.get("/presence", (req, res) => {
     const wMap = getWorkspaceMap(workspaceId);
     res.json(Array.from(wMap.values()));
 });
+
+// Clear teammate presence explicitly
+app.delete("/presence", (req, res) => {
+    const workspaceId = req.query.workspaceId || "default";
+    const developerId = req.query.developerId;
+    if (!developerId) {
+        return res.status(400).json({ error: "developerId is required" });
+    }
+
+    const wMap = getWorkspaceMap(workspaceId);
+    const existed = wMap.delete(developerId);
+
+    if (existed) {
+        broadcastToWorkspace(workspaceId, {
+            type: "developer_offline",
+            payload: { developerId, workspaceId }
+        });
+    }
+
+    res.json({ success: true, removed: existed });
+});
+
+// Paginated activity history endpoint
+app.get("/activities/history", (req, res) => {
+    const workspaceId = req.query.workspaceId;
+    const limit = parseInt(req.query.limit, 10) || 50;
+
+    let filtered = activities;
+    if (workspaceId) {
+        filtered = activities.filter(a => (a.workspaceId || "default") === workspaceId);
+    }
+
+    const result = filtered.slice(-limit).reverse();
+    res.json(result);
+});
+
+// Periodic background check to prune stale inactive sessions (> 15 mins)
+const STALE_TIMEOUT_MS = 15 * 60 * 1000;
+setInterval(() => {
+    const now = Date.now();
+    workspacePresenceMap.forEach((wMap, workspaceId) => {
+        wMap.forEach((state, developerId) => {
+            const lastSeenTime = new Date(state.lastSeen).getTime();
+            if (now - lastSeenTime > STALE_TIMEOUT_MS) {
+                console.log(`Pruning stale inactive session for developer ${developerId} in workspace ${workspaceId}`);
+                wMap.delete(developerId);
+                broadcastToWorkspace(workspaceId, {
+                    type: "developer_offline",
+                    payload: { developerId, workspaceId }
+                });
+            }
+        });
+    });
+}, 30000);
