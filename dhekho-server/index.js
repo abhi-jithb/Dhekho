@@ -109,15 +109,23 @@ app.post("/activity", (req, res) => {
     console.log("Activity received:", activity);
     activities.push(activity);
 
+    const wMap = getWorkspaceMap(workspaceId);
+    const existing = wMap.get(activity.developerId);
+
+    const startTime = (existing && existing.activeFile === activity.file && existing.startTime)
+        ? existing.startTime
+        : (activity.timeStamp || new Date().toISOString());
+
     const teammateState = {
         developerId: activity.developerId,
         developerName: activity.developerName || activity.developerId,
         workspaceId,
         activeFile: activity.file,
+        gitBranch: activity.gitBranch || existing?.gitBranch,
+        startTime,
         lastSeen: activity.timeStamp || new Date().toISOString()
     };
 
-    const wMap = getWorkspaceMap(workspaceId);
     wMap.set(activity.developerId, teammateState);
 
     // Broadcast presence update to workspace clients
