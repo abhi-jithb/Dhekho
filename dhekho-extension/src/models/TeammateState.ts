@@ -6,4 +6,6 @@ export interface TeammateState {
     lastSeen: string;
     gitBranch?: string;
     startTime?: string;
+    isEditing?: boolean;
+    lastSaved?: string;
 }

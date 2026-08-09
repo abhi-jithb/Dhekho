@@ -8,8 +8,9 @@ import { ActivitySubscriber } from './services/ActivitySubscriber';
 import { DhekhoFileDecorationProvider } from './providers/DhekhoFileDecorationProvider';
 import { DhekhoStatusBarItem } from './components/StatusBarItem';
 import { registerTeamActivityCommands } from './commands/TeamActivityCommand';
-
 import { getCurrentGitBranch } from './services/GitService';
+
+let editDebounceTimer: NodeJS.Timeout | null = null;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Activating Dhekho team awareness platform extension...');
@@ -61,22 +62,90 @@ export function activate(context: vscode.ExtensionContext) {
 
             const gitBranch = await getCurrentGitBranch(workspaceFolder);
 
-            const activity = createActivity(
-                "active-file-changed",
-                fileName,
-                workspaceId,
-                gitBranch
-            );
+            const activity = {
+                ...createActivity("active-file-changed", fileName, workspaceId, gitBranch),
+                isEditing: edi.document.isDirty
+            };
 
-            console.log("ABOUT TO PUBLISH ACTIVITY:", activity);
             try {
                 await publish(activity);
-                console.log("PUBLISH FINISHED SUCCESSFULLY");
             } catch (err) {
                 console.error("Failed to publish activity to server:", err);
             }
         })
     );
+
+    // 6. Listen for document saves
+    context.subscriptions.push(
+        vscode.workspace.onDidSaveTextDocument(async (doc) => {
+            if (!doc || doc.uri.scheme !== 'file') {
+                return;
+            }
+
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(doc.uri);
+            const fileName = workspaceFolder
+                ? path.relative(workspaceFolder.uri.fsPath, doc.uri.fsPath)
+                : doc.fileName;
+
+            const gitBranch = await getCurrentGitBranch(workspaceFolder);
+
+            const activity = {
+                ...createActivity("file-saved", fileName, workspaceId, gitBranch),
+                isEditing: false,
+                lastSaved: new Date().toISOString()
+            };
+
+            try {
+                await publish(activity);
+            } catch (err) {
+                console.error("Failed to publish save activity to server:", err);
+            }
+        })
+    );
+
+    // 7. Listen for document editing (debounced)
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument((e) => {
+            if (!e.document || e.document.uri.scheme !== 'file') {
+                return;
+            }
+
+            const activeEditor = vscode.window.activeTextEditor;
+            if (!activeEditor || activeEditor.document.uri.toString() !== e.document.uri.toString()) {
+                return;
+            }
+
+            if (editDebounceTimer) {
+                clearTimeout(editDebounceTimer);
+            }
+
+            editDebounceTimer = setTimeout(async () => {
+                editDebounceTimer = null;
+                const workspaceFolder = vscode.workspace.getWorkspaceFolder(e.document.uri);
+                const fileName = workspaceFolder
+                    ? path.relative(workspaceFolder.uri.fsPath, e.document.uri.fsPath)
+                    : e.document.fileName;
+
+                const gitBranch = await getCurrentGitBranch(workspaceFolder);
+
+                const activity = {
+                    ...createActivity("file-editing", fileName, workspaceId, gitBranch),
+                    isEditing: true
+                };
+
+                try {
+                    await publish(activity);
+                } catch (err) {
+                    console.error("Failed to publish editing activity to server:", err);
+                }
+            }, 800);
+        })
+    );
 }
 
-export function deactivate() { }
+export function deactivate() {
+    if (editDebounceTimer) {
+        clearTimeout(editDebounceTimer);
+        editDebounceTimer = null;
+    }
+}

@@ -6,4 +6,6 @@ export interface Activity {
     developerId: string;
     developerName: string;
     gitBranch?: string;
+    isEditing?: boolean;
+    lastSaved?: string;
 }
