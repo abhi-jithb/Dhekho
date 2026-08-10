@@ -5,4 +5,7 @@ export interface Activity {
     timeStamp: Date;
     developerId: string;
     developerName: string;
+    gitBranch?: string;
+    isEditing?: boolean;
+    lastSaved?: string;
 }

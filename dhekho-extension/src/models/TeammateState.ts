@@ -4,4 +4,8 @@ export interface TeammateState {
     workspaceId: string;
     activeFile: string;
     lastSeen: string;
+    gitBranch?: string;
+    startTime?: string;
+    isEditing?: boolean;
+    lastSaved?: string;
 }
